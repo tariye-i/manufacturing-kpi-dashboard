@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from scipy import stats
 
 # Page Config
-st.set_page_config(page_title="FGF Production Dashboard", layout="wide")
+st.set_page_config(page_title="Production Dashboard", layout="wide")
 st.title("Manufacturing Line Dashboard")
 st.caption("Real-time production monitoring across Lines A, B, and C")
 
