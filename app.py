@@ -19,7 +19,6 @@ def generate_data():
     for i in range(48):
         for line in lines:
             output = random.randint(200, 400)
-            # Occasionally inject anomalies
             if random.random() < 0.08:
                 output = random.randint(50, 150)
             efficiency = round(random.uniform(70, 99), 1)
@@ -44,10 +43,54 @@ def detect_anomalies(data, column, threshold=2.0):
     data["Anomaly"] = abs(z_scores) > threshold
     return data
 
-# Split into current and previous 12 hour windows
+# Generate shift report text
+def generate_shift_report(shift_df, anomalies, efficiency_threshold):
+    worst_line = shift_df.groupby("Line")["Efficiency (%)"].mean().idxmin()
+    worst_efficiency = round(shift_df.groupby("Line")["Efficiency (%)"].mean().min(), 1)
+    total_output = shift_df["Output"].sum()
+    avg_efficiency = round(shift_df["Efficiency (%)"].mean(), 1)
+    total_downtime = shift_df["Downtime (mins)"].sum()
+    anomaly_count = len(anomalies)
+    report_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    report = f"""SHIFT REPORT
+Generated: {report_time}
+Period: Last 8 Hours
+
+SUMMARY
+Total Output: {total_output:,} units
+Average Efficiency: {avg_efficiency}%
+Total Downtime: {total_downtime} mins
+Anomalies Detected: {anomaly_count}
+
+LINE PERFORMANCE
+"""
+    for line in shift_df["Line"].unique():
+        line_df = shift_df[shift_df["Line"] == line]
+        line_output = line_df["Output"].sum()
+        line_efficiency = round(line_df["Efficiency (%)"].mean(), 1)
+        line_downtime = line_df["Downtime (mins)"].sum()
+        line_anomalies = len(anomalies[anomalies["Line"] == line])
+        report += f"""
+{line}
+  Output: {line_output:,} units
+  Avg Efficiency: {line_efficiency}%
+  Downtime: {line_downtime} mins
+  Anomalies: {line_anomalies}
+"""
+
+    report += f"""
+ATTENTION
+Worst Performing Line: {worst_line} ({worst_efficiency}% avg efficiency)
+Lines Below {efficiency_threshold}% Threshold: {shift_df[shift_df["Efficiency (%)"] < efficiency_threshold]["Line"].nunique()}
+"""
+    return report
+
+# Split into time windows
 now = datetime.now()
 current_df = df[df["Time"] >= now - timedelta(hours=12)]
 previous_df = df[df["Time"] < now - timedelta(hours=12)]
+shift_df = df[df["Time"] >= now - timedelta(hours=8)]
 
 # Sidebar Filters
 st.sidebar.header("Filters")
@@ -74,12 +117,15 @@ zscore_sensitivity = st.sidebar.slider(
 filtered_df = df[df["Line"].isin(selected_lines)].copy()
 filtered_current = current_df[current_df["Line"].isin(selected_lines)]
 filtered_previous = previous_df[previous_df["Line"].isin(selected_lines)]
+filtered_shift = shift_df[shift_df["Line"].isin(selected_lines)].copy()
 
-# Run anomaly detection on filtered data
+# Run anomaly detection
 filtered_df = detect_anomalies(filtered_df, "Output", threshold=zscore_sensitivity)
+filtered_shift = detect_anomalies(filtered_shift, "Output", threshold=zscore_sensitivity)
 anomalies_df = filtered_df[filtered_df["Anomaly"] == True]
+shift_anomalies_df = filtered_shift[filtered_shift["Anomaly"] == True]
 
-# KPI Cards with deltas
+# KPI Cards
 st.subheader("Key Performance Indicators")
 col1, col2, col3, col4 = st.columns(4)
 
@@ -144,7 +190,7 @@ with col5:
         fig1.add_trace(go.Scatter(
             x=anomaly_line_df["Time"], y=anomaly_line_df["Output"],
             mode="markers", name=f"{line} Anomaly",
-            marker=dict(color="red", size=10, symbol="circle")
+            marker=dict(color="red", size=10, symbol="x")
         ))
     st.plotly_chart(fig1, use_container_width=True)
 
@@ -167,6 +213,31 @@ fig3.add_hline(
     annotation_text="Alert Threshold"
 )
 st.plotly_chart(fig3, use_container_width=True)
+
+# Shift Report Section
+st.divider()
+st.subheader("Shift Report")
+report_col1, report_col2, report_col3 = st.columns([2, 1, 1])
+
+with report_col1:
+    st.caption("Generate a summary report for the last 8 hours across selected lines.")
+
+with report_col2:
+    report_text = generate_shift_report(filtered_shift, shift_anomalies_df, efficiency_threshold)
+    st.download_button(
+        label="Download Report (.txt)",
+        data=report_text,
+        file_name=f"shift_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+        mime="text/plain"
+    )
+
+with report_col3:
+    st.download_button(
+        label="Download Raw Data (.csv)",
+        data=filtered_shift.to_csv(index=False),
+        file_name=f"shift_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+        mime="text/csv"
+    )
 
 st.divider()
 
