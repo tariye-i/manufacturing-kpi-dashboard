@@ -31,8 +31,6 @@ I built this as a personal project to explore data visualization and anomaly det
 
 ## Run Locally
 
-## Run Locally
-
 1. Clone the repo
 ```
 git clone https://github.com/tariye-i/manufacturing-kpi-dashboard.git
