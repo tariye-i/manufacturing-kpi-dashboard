@@ -14,6 +14,7 @@ I built this as a personal project to explore data visualization and anomaly det
 - **Anomaly Detection** — Z-score based detection that flags unusual output readings relative to each line's own historical behavior
 - **Alerts Panel** — combines efficiency threshold alerts and anomaly alerts in one view
 - **Interactive Filters** — filter by production line, adjust efficiency threshold, and tune anomaly sensitivity
+- **Shift Report Generator** — one-click download of an 8-hour shift summary including output, efficiency, downtime, and anomaly counts per line, exportable as a text report or raw CSV
 - **Anomaly Log** — detailed table of flagged readings with Z-scores
 - **Raw Data Table** — full view of all readings sorted by most recent
 
