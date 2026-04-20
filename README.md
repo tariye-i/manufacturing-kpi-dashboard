@@ -24,7 +24,7 @@ I built this as a personal project to explore data visualization and anomaly det
 - Streamlit
 - Pandas
 - Plotly
-- Scipy
+- SciPy
 
 ## Live Demo
 
